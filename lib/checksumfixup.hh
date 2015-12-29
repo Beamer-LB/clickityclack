@@ -21,6 +21,13 @@ static inline uint32_t checksumFixup32(uint32_t oldField, uint32_t newField, uin
 		sum));
 }
 
+static inline uint32_t checksumFixup64(uint64_t oldField, uint64_t newField, uint32_t sum)
+{
+	return checksumFixup32(oldField >> 32, newField >> 32,
+		checksumFixup32(oldField & 0xffffffff, newField & 0xffffffff,
+		sum));
+}
+
 static inline uint32_t checksumMetaFixup(uint16_t oldField, uint16_t newField, uint32_t sum)
 {
 	return checksumFixup16(newField, oldField, sum);

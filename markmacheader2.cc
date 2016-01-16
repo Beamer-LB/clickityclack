@@ -64,5 +64,5 @@ MarkMACHeader2::simple_action(Packet *p)
 }
 
 CLICK_ENDDECLS
-EXPORT_ELEMENT(MarkMACHeader)
-ELEMENT_MT_SAFE(MarkMACHeader)
+EXPORT_ELEMENT(MarkMACHeader2)
+ELEMENT_MT_SAFE(MarkMACHeader2)

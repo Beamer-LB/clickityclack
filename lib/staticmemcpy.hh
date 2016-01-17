@@ -24,6 +24,11 @@ template <size_t SIZE> inline void staticMemcpy(char *dst, char *src)
 	staticMemcpy<SIZE - 8>(dst + 8, src + 8);
 }
 
+template <size_t SIZE> inline void staticMemcpy(void *dst, void *src)\
+{
+	staticMemcpy<SIZE>((char *)dst, (char *)src);
+}
+
 /* one value at a time */
 template <> inline void staticMemcpy<8>(char *dst, char *src)
 {

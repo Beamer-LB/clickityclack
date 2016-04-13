@@ -32,10 +32,9 @@ int AdjustEther::configure(Vector<String> &conf, ErrorHandler *errh)
 #if HAVE_BATCH
 PacketBatch *AdjustEther::simple_action_batch(PacketBatch *head)
 {
-	Packet* current = head;
-	Packet* last = head;
-	int c = head->count();
-	int dropped = 0;
+	Packet *current = head;
+	Packet *last = head;
+	
 	while (current != NULL)
 	{
 		/* do stuff */

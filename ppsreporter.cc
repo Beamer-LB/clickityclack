@@ -36,8 +36,10 @@ static inline void report(int thread, click_jiffies_t duration)
 #if HAVE_BATCH
 PacketBatch *PPSReporter::simple_action_batch(PacketBatch *head)
 {
-	Packet* current = head;
-	Packet* last = head;
+	Packet *current = head;
+	Packet *last = head;
+	int c = head->count();
+	
 	while (current != NULL)
 	{
 		/* do stuff */

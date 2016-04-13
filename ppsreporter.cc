@@ -28,37 +28,16 @@ int PPSReporter::configure(Vector<String> &conf, ErrorHandler *errh)
 	return 0;
 }
 
-static inline void report(int thread, click_jiffies_t duration)
-{
-	click_chatter("%d: %d", thread, (int)duration);
-}
-
 #if HAVE_BATCH
 PacketBatch *PPSReporter::simple_action_batch(PacketBatch *head)
 {
-	Packet *current = head;
-	Packet *last = head;
-	int c = head->count();
+	int thread = click_current_cpu_id();
 	
-	while (current != NULL)
-	{
-		/* do stuff */
-		Packet *result = simple_action(current);
-		
-		if (current == head)
-		{
-			head = PacketBatch::start_head(result);
-			head->set_next(current->next());
-		}
-		else
-		{
-			last->set_next(result);
-			result->set_next(current->next());
-		}
-		
-		last = result;
-		current = result->next();
-	}
+	seen[thread] += head->count();
+	
+	if (unlikely(seen[thread] >= epochSize))
+		newEpoch(thread);
+	
 	return head;
 }
 #endif

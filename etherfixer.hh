@@ -1,4 +1,4 @@
-#ifndef CLICK_FASTARPQUERIER_HH
+#ifndef CLICK_ETHERFIXER_HH
 #define CLICK_ETHERFIXER_HH
 #include <click/element.hh>
 #include <click/etheraddress.hh>
@@ -6,6 +6,7 @@
 #include <click/sync.hh>
 #include <click/timer.hh>
 #include "../ethernet/arptable.hh"
+#include "lib/macint64.hh"
 CLICK_DECLS
 
 /*
@@ -57,38 +58,6 @@ Element.  Names an ARPTable element that holds this element's corresponding
 ARP state.  By default ARPQuerier creates its own internal ARPTable and uses
 that.  If TABLE is specified, CAPACITY, ENTRY_CAPACITY, ENTRY_PACKET_CAPACITY,
 and TIMEOUT are ignored.
-
-=item CAPACITY
-
-Unsigned integer.  The maximum number of saved IP packets the table will
-hold at a time.  Default is 2048.
-
-=item ENTRY_CAPACITY
-
-Unsigned integer.  The maximum number of ARP entries the table will hold
-at a time.  Default is 0, which means unlimited.
-
-=item ENTRY_PACKET_CAPACITY
-
-Unsigned integer.  The maximum number of saved packets the table will hold
-for any given ARP entry at a time.  Default is 0, which means unlimited.
-
-=item TIMEOUT
-
-Amount of time before an ARP entry expires.  Defaults to 5 minutes.
-
-=item BROADCAST
-
-IP address.  Local broadcast IP address.  Packets sent to this address will be
-forwarded to Ethernet address FF-FF-FF-FF-FF-FF.  Defaults to the local
-broadcast address that can be extracted from the IP address's corresponding
-prefix, if any.
-
-=item BROADCAST_POLL
-
-Boolean.  If true, then send broadcast ARP polls (where an entry is about to
-expire, but hasn't expired yet).  The default is to send such polls unicast to
-the known Ethernet address.  Defaults to false.
 
 =back
 
@@ -157,52 +126,46 @@ Clear the ARP table.
 ARPTable, ARPResponder, ARPFaker, AddressInfo
 */
 
-class EtherFixer : public Element { public:
+class EtherFixer: public Element
+{
+public:
+	EtherFixer() CLICK_COLD;
+	~EtherFixer() CLICK_COLD;
+	
+	const char *class_name() const		{ return "EtherFixer"; }
+	const char *port_count() const		{ return "1/1"; }
+	const char *processing() const		{ return AGNOSTIC; }
+	void *cast(const char *name);
+	
+	int configure(Vector<String> &, ErrorHandler *) CLICK_COLD;
+	int initialize(ErrorHandler *errh) CLICK_COLD;
+	void add_handlers() CLICK_COLD;
+	void cleanup(CleanupStage stage) CLICK_COLD;
+	void take_state(Element *e, ErrorHandler *errh);
+	
+	Packet *simple_action(Packet *p);
 
-    EtherFixer() CLICK_COLD;
-    ~EtherFixer() CLICK_COLD;
-
-    const char *class_name() const		{ return "EtherFixer"; }
-    const char *port_count() const		{ return "1/1"; }
-    const char *processing() const		{ return PUSH; }
-    const char *flow_code() const		{ return "xy/x"; }
-    // click-undead should consider all paths live (not just "xy/x"):
-    const char *flags() const			{ return "L2"; }
-    void *cast(const char *name);
-
-    int configure(Vector<String> &, ErrorHandler *) CLICK_COLD;
-    int live_reconfigure(Vector<String> &, ErrorHandler *);
-    bool can_live_reconfigure() const		{ return true; }
-    int initialize(ErrorHandler *errh) CLICK_COLD;
-    void add_handlers() CLICK_COLD;
-    void cleanup(CleanupStage stage) CLICK_COLD;
-    void take_state(Element *e, ErrorHandler *errh);
-
-    void push(int, Packet *p);
-
-  private:
-
-    ARPTable *_arpt;
-    EtherAddress _my_en;
-    IPAddress _my_ip;
-    IPAddress _my_bcast_ip;
-    int _broadcast_poll;
-
-    // statistics
-    atomic_uint32_t _arp_queries;
-    atomic_uint32_t _drops;
-    atomic_uint32_t _broadcasts;
-    bool _my_arpt;
-    bool _zero_warned;
-
-    static String read_table(Element *, void *);
-    static String read_table_xml(Element *, void *);
-    static String read_handler(Element *, void *) CLICK_COLD;
-    static int write_handler(const String &, Element *, void *, ErrorHandler *) CLICK_COLD;
-
-    enum { h_table, h_table_xml, h_stats, h_insert, h_delete, h_clear, h_count };
-
+private:
+	ARPTable *_arpt;
+	EtherAddress _my_en;
+	uint64_t _my_en64;
+	IPAddress _my_ip;
+	IPAddress _my_bcast_ip;
+	int _broadcast_poll;
+	
+	// statistics
+	atomic_uint32_t _drops;
+	bool _my_arpt;
+	bool _zero_warned;
+	
+	static String read_table(Element *, void *);
+	static String read_table_xml(Element *, void *);
+	static String read_handler(Element *, void *) CLICK_COLD;
+	static int write_handler(const String &, Element *, void *, ErrorHandler *) CLICK_COLD;
+	
+	enum { h_table, h_table_xml, h_stats, h_insert, h_delete, h_clear, h_count };
 };
 
 CLICK_ENDDECLS
-#endif
+
+#endif /* CLICK_ETHERFIXER_HH */

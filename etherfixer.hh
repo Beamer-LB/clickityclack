@@ -1,5 +1,5 @@
 #ifndef CLICK_FASTARPQUERIER_HH
-#define CLICK_FASTARPQUERIER_HH
+#define CLICK_ETHERFIXER_HH
 #include <click/element.hh>
 #include <click/etheraddress.hh>
 #include <click/ipaddress.hh>
@@ -77,11 +77,6 @@ for any given ARP entry at a time.  Default is 0, which means unlimited.
 
 Amount of time before an ARP entry expires.  Defaults to 5 minutes.
 
-=item POLL_TIMEOUT
-
-Amount of time after which ARPQuerier will start polling for renewal.  0 means
-don't poll.  Defaults to one minute.
-
 =item BROADCAST
 
 IP address.  Local broadcast IP address.  Packets sent to this address will be
@@ -120,10 +115,6 @@ ARPQuerier will send at most 10 queries a second for any IP address.
 
 Returns or sets the ARPQuerier's source IP address.
 
-=h broadcast r
-
-Returns the ARPQuerier's IP broadcast address.
-
 =h table r
 
 Returns a textual representation of the ARP table.  See ARPTable's table
@@ -149,10 +140,6 @@ Returns the number of packets dropped.
 
 Returns the number of entries in the ARP table.
 
-=h length r
-
-Returns the number of packets stored in the ARP table.
-
 =h insert w
 
 Add an entry to the ARP table.  The input string should have the form "IP ETH".
@@ -175,8 +162,8 @@ class EtherFixer : public Element { public:
     EtherFixer() CLICK_COLD;
     ~EtherFixer() CLICK_COLD;
 
-    const char *class_name() const		{ return "FastARPQuerier"; }
-    const char *port_count() const		{ return "2/1-2"; }
+    const char *class_name() const		{ return "EtherFixer"; }
+    const char *port_count() const		{ return "1/1"; }
     const char *processing() const		{ return PUSH; }
     const char *flow_code() const		{ return "xy/x"; }
     // click-undead should consider all paths live (not just "xy/x"):
@@ -191,7 +178,7 @@ class EtherFixer : public Element { public:
     void cleanup(CleanupStage stage) CLICK_COLD;
     void take_state(Element *e, ErrorHandler *errh);
 
-    void push(int port, Packet *p);
+    void push(int, Packet *p);
 
   private:
 
@@ -199,30 +186,21 @@ class EtherFixer : public Element { public:
     EtherAddress _my_en;
     IPAddress _my_ip;
     IPAddress _my_bcast_ip;
-    uint32_t _poll_timeout_j;
     int _broadcast_poll;
 
     // statistics
     atomic_uint32_t _arp_queries;
     atomic_uint32_t _drops;
-    atomic_uint32_t _arp_responses;
     atomic_uint32_t _broadcasts;
     bool _my_arpt;
     bool _zero_warned;
 
-    void send_query_for(const Packet *p, bool ether_dhost_valid);
-
-    void handle_ip(Packet *p, bool response);
-    void handle_response(Packet *p);
-
-    static void expire_hook(Timer *, void *);
     static String read_table(Element *, void *);
     static String read_table_xml(Element *, void *);
     static String read_handler(Element *, void *) CLICK_COLD;
     static int write_handler(const String &, Element *, void *, ErrorHandler *) CLICK_COLD;
 
-    enum { h_table, h_table_xml, h_stats, h_insert, h_delete, h_clear,
-	   h_count, h_length };
+    enum { h_table, h_table_xml, h_stats, h_insert, h_delete, h_clear, h_count };
 
 };
 

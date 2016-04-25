@@ -106,10 +106,6 @@ EtherFixer::configure(Vector<String> &conf, ErrorHandler *errh)
     }
 
     _broadcast_poll = broadcast_poll;
-    if ((uint32_t) poll_timeout.sec() >= (uint32_t) 0xFFFFFFFFU / CLICK_HZ)
-	_poll_timeout_j = 0;
-    else
-	_poll_timeout_j = poll_timeout.jiffies();
 
     return 0;
 }
@@ -131,7 +127,6 @@ EtherFixer::live_reconfigure(Vector<String> &conf, ErrorHandler *errh)
 	.read("TIMEOUT", timeout).read_status(have_timeout)
 	.read("BROADCAST", my_bcast_ip).read_status(have_broadcast)
 	.read_with("TABLE", AnyArg())
-	.read("POLL_TIMEOUT", poll_timeout)
 	.read("BROADCAST_POLL", broadcast_poll)
 	.consume() < 0)
 	return -1;
@@ -213,171 +208,69 @@ EtherFixer::take_state(Element *e, ErrorHandler *errh)
 }
 
 void
-EtherFixer::send_query_for(const Packet *p, bool ether_dhost_valid)
+EtherFixer::push(int, Packet *p)
 {
-    // Uses p's IP and Ethernet headers.
-
-    static_assert(Packet::default_headroom >= sizeof(click_ether), "Packet::default_headroom must be at least 14.");
-    WritablePacket *q = Packet::make(Packet::default_headroom - sizeof(click_ether),
-				     NULL, sizeof(click_ether) + sizeof(click_ether_arp), 0);
-    if (!q) {
-	click_chatter("in arp querier: cannot make packet!");
-	return;
-    }
-
-    click_ether *e = (click_ether *) q->data();
-    q->set_ether_header(e);
-    if (ether_dhost_valid && likely(!_broadcast_poll))
-	memcpy(e->ether_dhost, p->ether_header()->ether_dhost, 6);
-    else
-	memset(e->ether_dhost, 0xff, 6);
-    memcpy(e->ether_shost, _my_en.data(), 6);
-    e->ether_type = htons(ETHERTYPE_ARP);
-
-    click_ether_arp *ea = (click_ether_arp *) (e + 1);
-    ea->ea_hdr.ar_hrd = htons(ARPHRD_ETHER);
-    ea->ea_hdr.ar_pro = htons(ETHERTYPE_IP);
-    ea->ea_hdr.ar_hln = 6;
-    ea->ea_hdr.ar_pln = 4;
-    ea->ea_hdr.ar_op = htons(ARPOP_REQUEST);
-    memcpy(ea->arp_sha, _my_en.data(), 6);
-    memcpy(ea->arp_spa, _my_ip.data(), 4);
-    memset(ea->arp_tha, 0, 6);
-    IPAddress want_ip = p->dst_ip_anno();
-    memcpy(ea->arp_tpa, want_ip.data(), 4);
-
-    q->set_timestamp_anno(p->timestamp_anno());
-    SET_VLAN_TCI_ANNO(q, VLAN_TCI_ANNO(p));
-
-    _arp_queries++;
-    output(noutputs() - 1).push(q);
-}
-
-/*
- * If the packet's IP address is in the table, add an ethernet header
- * and push it out.
- * Otherwise push out a query packet.
- * May save the packet in the ARP table for later sending.
- * May call p->kill().
- */
-void
-EtherFixer::handle_ip(Packet *p, bool response)
-{
-    // delete packet if we are not configured
-    if (!_my_ip) {
-	p->kill();
-	++_drops;
-	return;
-    }
-
-    // make room for Ethernet header
-    WritablePacket *q;
-    if (response) {
-	assert(!p->shared());
-	q = p->uniqueify();
-    } else if (!(q = p->push_mac_header(sizeof(click_ether)))) {
-	++_drops;
-	return;
-    } else
-	q->ether_header()->ether_type = htons(ETHERTYPE_IP);
-
-    IPAddress dst_ip = q->dst_ip_anno();
-    EtherAddress *dst_eth = reinterpret_cast<EtherAddress *>(q->ether_header()->ether_dhost);
-    int r;
-
-    // Easy case: requires only read lock
-  retry_read_lock:
-    r = _arpt->lookup(dst_ip, dst_eth, _poll_timeout_j);
-    if (r >= 0) {
-	assert(!dst_eth->is_broadcast());
-	if (r > 0)
-	    send_query_for(q, true);
-	// ... and send packet below.
-    } else if (dst_ip.addr() == 0xFFFFFFFFU || dst_ip == _my_bcast_ip) {
-	memset(dst_eth, 0xff, 6);
-	// ... and send packet below.
-    } else if (dst_ip.is_multicast()) {
-	uint8_t *dst_addr = q->ether_header()->ether_dhost;
-	dst_addr[0] = 0x01;
-	dst_addr[1] = 0x00;
-	dst_addr[2] = 0x5E;
-	uint32_t addr = ntohl(dst_ip.addr());
-	dst_addr[3] = (addr >> 16) & 0x7F;
-	dst_addr[4] = addr >> 8;
-	dst_addr[5] = addr;
-	// ... and send packet below.
-    } else {
-	// Zero or unknown address: do not send the packet.
-	if (!dst_ip) {
-	    if (!_zero_warned) {
-		click_chatter("%s: would query for 0.0.0.0; missing dest IP addr annotation?", declaration().c_str());
-		_zero_warned = true;
-	    }
+	// delete packet if we are not configured
+        if (!_my_ip) {
+	    p->kill();
 	    ++_drops;
-	    q->kill();
-	} else {
-	    r = _arpt->append_query(dst_ip, q);
-	    if (r == -EAGAIN)
-		goto retry_read_lock;
-	    if (r < 0)
-		q->kill();
+	    return;
+        }
+        
+	WritablePacket *q = p->uniqueify();
+	
+        IPAddress dst_ip = q->dst_ip_anno();
+        EtherAddress *dst_eth = reinterpret_cast<EtherAddress *>(q->ether_header()->ether_dhost);
+        int r;
+    
+        // Easy case: requires only read lock
+      retry_read_lock:
+        r = _arpt->lookup(dst_ip, dst_eth, 0);
+        if (r >= 0) {
+	    assert(!dst_eth->is_broadcast());
 	    if (r > 0)
-		send_query_for(q, false); // q is on the ARP entry's queue
-	    // if r >= 0, do not q->kill() since it is stored in some ARP entry.
-	}
-	return;
-    }
-
-    // It's time to emit the packet with our Ethernet address as source.  (Set
-    // the source address immediately before send in case the user changes the
-    // source address while packets are enqueued.)
-    memcpy(&q->ether_header()->ether_shost, _my_en.data(), 6);
-    output(0).push(q);
-}
-
-/*
- * Got an ARP response.
- * Update our ARP table.
- * If there was a packet waiting to be sent, return it.
- */
-void
-EtherFixer::handle_response(Packet *p)
-{
-    if (p->length() < sizeof(click_ether) + sizeof(click_ether_arp))
-	return;
-
-    ++_arp_responses;
-
-    click_ether *ethh = (click_ether *) p->data();
-    click_ether_arp *arph = (click_ether_arp *) (ethh + 1);
-    IPAddress ipa = IPAddress(arph->arp_spa);
-    EtherAddress ena = EtherAddress(arph->arp_sha);
-    if (ntohs(ethh->ether_type) == ETHERTYPE_ARP
-	&& ntohs(arph->ea_hdr.ar_hrd) == ARPHRD_ETHER
-	&& ntohs(arph->ea_hdr.ar_pro) == ETHERTYPE_IP
-	&& ntohs(arph->ea_hdr.ar_op) == ARPOP_REPLY
-	&& !ena.is_group()) {
-	Packet *cached_packet;
-	_arpt->insert(ipa, ena, &cached_packet);
-
-	// Send out packets in the order in which they arrived
-	while (cached_packet) {
-	    Packet *next = cached_packet->next();
-	    handle_ip(cached_packet, true);
-	    cached_packet = next;
-	}
-    }
-}
-
-void
-EtherFixer::push(int port, Packet *p)
-{
-    if (port == 0)
-	handle_ip(p, false);
-    else {
-	handle_response(p);
-	p->kill();
-    }
+	        send_query_for(q, true);
+	    // ... and send packet below.
+        } else if (dst_ip.addr() == 0xFFFFFFFFU || dst_ip == _my_bcast_ip) {
+	    memset(dst_eth, 0xff, 6);
+	    // ... and send packet below.
+        } else if (dst_ip.is_multicast()) {
+	    uint8_t *dst_addr = q->ether_header()->ether_dhost;
+	    dst_addr[0] = 0x01;
+	    dst_addr[1] = 0x00;
+	    dst_addr[2] = 0x5E;
+	    uint32_t addr = ntohl(dst_ip.addr());
+	    dst_addr[3] = (addr >> 16) & 0x7F;
+	    dst_addr[4] = addr >> 8;
+	    dst_addr[5] = addr;
+	    // ... and send packet below.
+        } else {
+	    // Zero or unknown address: do not send the packet.
+	    if (!dst_ip) {
+	        if (!_zero_warned) {
+		    click_chatter("%s: would query for 0.0.0.0; missing dest IP addr annotation?", declaration().c_str());
+		    _zero_warned = true;
+	        }
+	        ++_drops;
+	        q->kill();
+	    } else {
+	        r = _arpt->append_query(dst_ip, q);
+	        if (r == -EAGAIN)
+		    goto retry_read_lock;
+	        if (r < 0)
+		    q->kill();
+	        if (r > 0)
+		    send_query_for(q, false); // q is on the ARP entry's queue
+	        // if r >= 0, do not q->kill() since it is stored in some ARP entry.
+	    }
+	    return;
+        }
+    
+        // It's time to emit the packet with our Ethernet address as source.  (Set
+        // the source address immediately before send in case the user changes the
+        // source address while packets are enqueued.)
+        memcpy(&q->ether_header()->ether_shost, _my_en.data(), 6);
+        output(0).push(q);
 }
 
 String
@@ -393,8 +286,6 @@ EtherFixer::read_handler(Element *e, void *thunk)
 	    String(q->_arp_queries.value()) + " ARP queries sent\n";
     case h_count:
 	return String(q->_arpt->count());
-    case h_length:
-	return String(q->_arpt->length());
     default:
 	return String();
     }
@@ -424,7 +315,6 @@ EtherFixer::add_handlers()
     add_read_handler("table", read_handler, h_table);
     add_read_handler("stats", read_handler, h_stats);
     add_read_handler("count", read_handler, h_count);
-    add_read_handler("length", read_handler, h_length);
     add_data_handlers("queries", Handler::OP_READ, &_arp_queries);
     add_data_handlers("responses", Handler::OP_READ, &_arp_responses);
     add_data_handlers("drops", Handler::OP_READ, &_drops);

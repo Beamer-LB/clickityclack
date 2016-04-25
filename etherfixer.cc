@@ -18,7 +18,7 @@
  */
 
 #include <click/config.h>
-#include "arpquerier.hh"
+#include "etherfixer.hh"
 #include <clicknet/ether.h>
 #include <click/etheraddress.hh>
 #include <click/ipaddress.hh>
@@ -31,17 +31,17 @@
 #include <click/packet_anno.hh>
 CLICK_DECLS
 
-FastARPQuerier::FastARPQuerier()
+EtherFixer::EtherFixer()
     : _arpt(0), _my_arpt(false), _zero_warned(false)
 {
 }
 
-FastARPQuerier::~FastARPQuerier()
+EtherFixer::~EtherFixer()
 {
 }
 
 void *
-FastARPQuerier::cast(const char *name)
+EtherFixer::cast(const char *name)
 {
     if (strcmp(name, "ARPTable") == 0)
 	return _arpt;
@@ -52,7 +52,7 @@ FastARPQuerier::cast(const char *name)
 }
 
 int
-FastARPQuerier::configure(Vector<String> &conf, ErrorHandler *errh)
+EtherFixer::configure(Vector<String> &conf, ErrorHandler *errh)
 {
     uint32_t capacity, entry_capacity, entry_packet_capacity, capacity_slim_factor;
     Timestamp timeout, poll_timeout(60);
@@ -115,7 +115,7 @@ FastARPQuerier::configure(Vector<String> &conf, ErrorHandler *errh)
 }
 
 int
-FastARPQuerier::live_reconfigure(Vector<String> &conf, ErrorHandler *errh)
+EtherFixer::live_reconfigure(Vector<String> &conf, ErrorHandler *errh)
 {
     uint32_t capacity, entry_capacity, entry_packet_capacity, capacity_slim_factor;
     Timestamp timeout, poll_timeout(Timestamp::make_jiffies((click_jiffies_t) _poll_timeout_j));
@@ -180,7 +180,7 @@ FastARPQuerier::live_reconfigure(Vector<String> &conf, ErrorHandler *errh)
 }
 
 int
-FastARPQuerier::initialize(ErrorHandler *)
+EtherFixer::initialize(ErrorHandler *)
 {
     _arp_queries = 0;
     _drops = 0;
@@ -189,7 +189,7 @@ FastARPQuerier::initialize(ErrorHandler *)
 }
 
 void
-FastARPQuerier::cleanup(CleanupStage stage)
+EtherFixer::cleanup(CleanupStage stage)
 {
     if (_my_arpt) {
 	_arpt->cleanup(stage);
@@ -198,9 +198,9 @@ FastARPQuerier::cleanup(CleanupStage stage)
 }
 
 void
-FastARPQuerier::take_state(Element *e, ErrorHandler *errh)
+EtherFixer::take_state(Element *e, ErrorHandler *errh)
 {
-    FastARPQuerier *arpq = (FastARPQuerier *) e->cast("ARPQuerier");
+    EtherFixer *arpq = (EtherFixer *) e->cast("ARPQuerier");
     if (!arpq || _my_ip != arpq->_my_ip || _my_en != arpq->_my_en
 	|| _my_bcast_ip != arpq->_my_bcast_ip)
 	return;
@@ -213,7 +213,7 @@ FastARPQuerier::take_state(Element *e, ErrorHandler *errh)
 }
 
 void
-FastARPQuerier::send_query_for(const Packet *p, bool ether_dhost_valid)
+EtherFixer::send_query_for(const Packet *p, bool ether_dhost_valid)
 {
     // Uses p's IP and Ethernet headers.
 
@@ -261,7 +261,7 @@ FastARPQuerier::send_query_for(const Packet *p, bool ether_dhost_valid)
  * May call p->kill().
  */
 void
-FastARPQuerier::handle_ip(Packet *p, bool response)
+EtherFixer::handle_ip(Packet *p, bool response)
 {
     // delete packet if we are not configured
     if (!_my_ip) {
@@ -341,7 +341,7 @@ FastARPQuerier::handle_ip(Packet *p, bool response)
  * If there was a packet waiting to be sent, return it.
  */
 void
-FastARPQuerier::handle_response(Packet *p)
+EtherFixer::handle_response(Packet *p)
 {
     if (p->length() < sizeof(click_ether) + sizeof(click_ether_arp))
 	return;
@@ -370,7 +370,7 @@ FastARPQuerier::handle_response(Packet *p)
 }
 
 void
-FastARPQuerier::push(int port, Packet *p)
+EtherFixer::push(int port, Packet *p)
 {
     if (port == 0)
 	handle_ip(p, false);
@@ -381,9 +381,9 @@ FastARPQuerier::push(int port, Packet *p)
 }
 
 String
-FastARPQuerier::read_handler(Element *e, void *thunk)
+EtherFixer::read_handler(Element *e, void *thunk)
 {
-    FastARPQuerier *q = (FastARPQuerier *)e;
+    EtherFixer *q = (EtherFixer *)e;
     switch (reinterpret_cast<uintptr_t>(thunk)) {
     case h_table:
 	return q->_arpt->read_handler(q->_arpt, (void *) (uintptr_t) ARPTable::h_table);
@@ -401,9 +401,9 @@ FastARPQuerier::read_handler(Element *e, void *thunk)
 }
 
 int
-FastARPQuerier::write_handler(const String &str, Element *e, void *thunk, ErrorHandler *errh)
+EtherFixer::write_handler(const String &str, Element *e, void *thunk, ErrorHandler *errh)
 {
-    FastARPQuerier *q = (FastARPQuerier *) e;
+    EtherFixer *q = (EtherFixer *) e;
     switch (reinterpret_cast<uintptr_t>(thunk)) {
     case h_insert:
 	return q->_arpt->write_handler(str, q->_arpt, (void *) (uintptr_t) ARPTable::h_insert, errh);
@@ -419,7 +419,7 @@ FastARPQuerier::write_handler(const String &str, Element *e, void *thunk, ErrorH
 }
 
 void
-FastARPQuerier::add_handlers()
+EtherFixer::add_handlers()
 {
     add_read_handler("table", read_handler, h_table);
     add_read_handler("stats", read_handler, h_stats);
@@ -436,6 +436,6 @@ FastARPQuerier::add_handlers()
 }
 
 CLICK_ENDDECLS
-EXPORT_ELEMENT(FastARPQuerier)
+EXPORT_ELEMENT(EtherFixer)
 ELEMENT_REQUIRES(ARPTable)
-ELEMENT_MT_SAFE(FastARPQuerier)
+ELEMENT_MT_SAFE(EtherFixer)

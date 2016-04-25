@@ -5,7 +5,7 @@
 #include <click/ipaddress.hh>
 #include <click/sync.hh>
 #include <click/timer.hh>
-#include "arptable.hh"
+#include "../ethernet/arptable.hh"
 CLICK_DECLS
 
 /*
@@ -170,10 +170,10 @@ Clear the ARP table.
 ARPTable, ARPResponder, ARPFaker, AddressInfo
 */
 
-class FastARPQuerier : public Element { public:
+class EtherFixer : public Element { public:
 
-    FastARPQuerier() CLICK_COLD;
-    ~FastARPQuerier() CLICK_COLD;
+    EtherFixer() CLICK_COLD;
+    ~EtherFixer() CLICK_COLD;
 
     const char *class_name() const		{ return "FastARPQuerier"; }
     const char *port_count() const		{ return "2/1-2"; }

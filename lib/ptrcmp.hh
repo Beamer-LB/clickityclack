@@ -21,6 +21,8 @@ int ptrCmp(const void *aPtr, const void *bPtr)
 	return 0;
 }
 
+}
+
 CLICK_ENDDECLS
 
 #endif /* CLICK_CLICKITYCLACK_PTRCMP_HH */

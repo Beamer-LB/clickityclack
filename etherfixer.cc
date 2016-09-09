@@ -149,6 +149,64 @@ drop:
 	return NULL;
 }
 
+#if HAVE_BATCH
+PacketBatch *EtherFixer::simple_action_batch(PacketBatch *head)
+{
+	Packet* current = head;
+	Packet* last = head;
+	int c = head->count();
+	int dropped = 0;
+	while (current != NULL)
+	{
+		/* do stuff */
+		Packet *result = simple_action(current);
+		
+		if (result)
+		{
+			if (current == head)
+			{
+				head = PacketBatch::start_head(result);
+				head->set_next(current->next());
+			}
+			else
+			{
+				last->set_next(result);
+				result->set_next(current->next());
+			}
+			
+			last = result;
+			current = result->next();
+		}
+		else
+		{
+			dropped++;
+			if (current == head)
+			{
+				head = PacketBatch::start_head(current->next());
+				current->set_next(NULL);
+				current->kill();
+				current = head;
+				last = head;
+			}
+			else
+			{
+				Packet* todrop = current;
+				current = current->next();
+				todrop->set_next(NULL);
+				todrop->kill();
+				last->set_next(current);
+			}
+		}
+	}
+	if (dropped && head)
+	{
+		head->set_count(c - dropped);
+		head->set_tail(last);
+	}
+	return head;
+}
+#endif
+
 String
 EtherFixer::read_handler(Element *e, void *thunk)
 {

@@ -5,6 +5,9 @@
 #include <click/ipaddress.hh>
 #include <click/sync.hh>
 #include <click/timer.hh>
+#if HAVE_BATCH
+#include <click/batchelement.hh>
+#endif
 #include "../ethernet/arptable.hh"
 #include "lib/macint64.hh"
 CLICK_DECLS
@@ -126,7 +129,11 @@ Clear the ARP table.
 ARPTable, ARPResponder, ARPFaker, AddressInfo
 */
 
+#if HAVE_BATCH
+class EtherFixer: public BatchElement
+#else
 class EtherFixer: public Element
+#endif
 {
 public:
 	EtherFixer() CLICK_COLD;
@@ -144,6 +151,9 @@ public:
 	void take_state(Element *e, ErrorHandler *errh);
 	
 	Packet *simple_action(Packet *p);
+#if HAVE_BATCH
+	PacketBatch *simple_action_batch(PacketBatch *batch);
+#endif
 
 private:
 	ARPTable *_arpt;

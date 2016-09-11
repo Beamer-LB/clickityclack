@@ -126,9 +126,8 @@ EtherFixer::take_state(Element *e, ErrorHandler *errh)
 	_drops = arpq->_drops;
 }
 
-Packet *
-EtherFixer::simple_action(Packet *p)
-{       
+Packet *EtherFixer::fixMACs(Packet *p)
+{
 	WritablePacket *wp = p->uniqueify();
 	
         IPAddress dst_ip = wp->dst_ip_anno();
@@ -137,16 +136,27 @@ EtherFixer::simple_action(Packet *p)
 	
         r = _arpt->lookup(dst_ip, dst_eth, 0);
         if (r < 0) 
-		goto drop;
-    
+		return NULL;
+	
         memcpy(&wp->ether_header()->ether_shost, _my_en.data(), 6);
 	MacInt64::storeUnsafe(_my_en64, wp->ether_header()->ether_shost);
         return wp;
+}
+
+Packet *
+EtherFixer::simple_action(Packet *p)
+{
+	Packet *result = fixMACs(p);
 	
-drop:
-	++_drops;
-        wp->kill();
-	return NULL;
+	if (!result)
+	{
+		++_drops;
+	        p->kill();
+		return NULL;
+	}
+	
+        return result;
+	
 }
 
 #if HAVE_BATCH
@@ -159,7 +169,7 @@ PacketBatch *EtherFixer::simple_action_batch(PacketBatch *head)
 	while (current != NULL)
 	{
 		/* do stuff */
-		Packet *result = simple_action(current);
+		Packet *result = fixMACs(current);
 		
 		if (result)
 		{

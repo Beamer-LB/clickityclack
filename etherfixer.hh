@@ -150,6 +150,8 @@ public:
 	void cleanup(CleanupStage stage) CLICK_COLD;
 	void take_state(Element *e, ErrorHandler *errh);
 	
+	Packet *fixMACs(Packet *p);
+	
 	Packet *simple_action(Packet *p);
 #if HAVE_BATCH
 	PacketBatch *simple_action_batch(PacketBatch *batch);

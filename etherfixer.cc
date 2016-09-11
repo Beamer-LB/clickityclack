@@ -130,7 +130,7 @@ Packet *EtherFixer::fixMACs(Packet *p)
 {
 	WritablePacket *wp = p->uniqueify();
 	
-        IPAddress dst_ip = wp->dst_ip_anno();
+        IPAddress dst_ip = IPAddress(wp->ip_header()->ip_dst);
         EtherAddress *dst_eth = reinterpret_cast<EtherAddress *>(wp->ether_header()->ether_dhost);
         int r;
 	

@@ -170,6 +170,9 @@ public:
 	{
 		T *ret = states.get(key);
 		
+		if (!ret)
+			return NULL;
+		
 		if (now < ret->expiryTime)
 		{
 			remove(ret);

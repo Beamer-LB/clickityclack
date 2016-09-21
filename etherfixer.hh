@@ -140,7 +140,7 @@ public:
 	~EtherFixer() CLICK_COLD;
 	
 	const char *class_name() const		{ return "EtherFixer"; }
-	const char *port_count() const		{ return "1/1"; }
+	const char *port_count() const		{ return "1-/="; }
 	const char *processing() const		{ return AGNOSTIC; }
 	void *cast(const char *name);
 	

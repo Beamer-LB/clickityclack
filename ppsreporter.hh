@@ -39,7 +39,7 @@ public:
 	
 	const char *class_name() const { return "PPSReporter"; }
 	
-	const char *port_count() const { return "1/1"; }
+	const char *port_count() const { return "1-/="; }
 	
 	const char *processing() const { return AGNOSTIC; }
 	

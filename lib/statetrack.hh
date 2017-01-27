@@ -173,7 +173,7 @@ public:
 		if (!ret)
 			return NULL;
 		
-		if (now < ret->expiryTime)
+		if (now > ret->expiryTime)
 		{
 			remove(ret);
 			return NULL;

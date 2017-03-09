@@ -56,8 +56,10 @@ void BatchStats::timerHook(Timer *timer, void *userData)
 {
 	BatchStats *me = reinterpret_cast<BatchStats *>(userData);
 	
+	click_jiffies_t now = click_jiffies();
+	
 	for (int i = 1; i <= me->maxBatch; i++)
-		click_chatter("BatchStats: size = %d count = %llu", i, me->counts[i]);
+		click_chatter("BatchStats: time = %u size = %d count = %llu", now, i, me->counts[i]);
 	
 	timer->schedule_after_sec(me->reportInterval);
 }

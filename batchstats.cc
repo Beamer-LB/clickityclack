@@ -66,4 +66,4 @@ void BatchStats::timerHook(Timer *timer, void *userData)
 
 CLICK_ENDDECLS
 
-EXPORT_ELEMENT(AdjustEther)
+EXPORT_ELEMENT(BatchStats)

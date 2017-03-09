@@ -68,8 +68,8 @@ void BatchStats::cleanup(CleanupStage stage)
 {
 	(void)stage;
 	
-	for (int i = 1; i <= me->maxBatch; i++)
-		click_chatter("BatchStats: size = %d count = %llu", i, me->counts[i]);
+	for (int i = 1; i <= maxBatch; i++)
+		click_chatter("BatchStats: size = %d count = %llu", i, counts[i]);
 }
 
 CLICK_ENDDECLS

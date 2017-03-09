@@ -13,7 +13,7 @@ int BatchStats::configure(Vector<String> &conf, ErrorHandler *errh)
 	
 	if (Args(conf, this, errh)
 		.read("MAX_BATCH",       IntArg(), maxBatch)
-		.read("REPORT_INTERVAL", IntArg(), reportInterval)
+		//.read("REPORT_INTERVAL", IntArg(), reportInterval)
 		.complete() < 0)
 	{
 		return -1;
@@ -30,8 +30,8 @@ int BatchStats::initialize(ErrorHandler *errh)
 {
 	(void)errh;
 	
-	timer.initialize(this);
-	timer.schedule_after_sec(reportInterval);
+	//timer.initialize(this);
+	//timer.schedule_after_sec(reportInterval);
 	
 	return 0;
 }
@@ -62,6 +62,14 @@ void BatchStats::timerHook(Timer *timer, void *userData)
 		click_chatter("BatchStats: time = %u size = %d count = %llu", now, i, me->counts[i]);
 	
 	timer->schedule_after_sec(me->reportInterval);
+}
+
+void BatchStats::cleanup(CleanupStage stage)
+{
+	(void)stage;
+	
+	for (int i = 1; i <= me->maxBatch; i++)
+		click_chatter("BatchStats: time = %u size = %d count = %llu", now, i, me->counts[i]);
 }
 
 CLICK_ENDDECLS

@@ -49,6 +49,8 @@ public:
 	
 	Packet *simple_action(Packet *p);
 	
+	void cleanup(CleanupStage stage);
+	
 #if HAVE_BATCH
 	PacketBatch *simple_action_batch(PacketBatch *head);
 #endif

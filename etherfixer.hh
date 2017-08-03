@@ -8,7 +8,7 @@
 #if HAVE_BATCH
 #include <click/batchelement.hh>
 #endif
-#include "../ethernet/arptable.hh"
+#include "../../ethernet/arptable.hh"
 #include "lib/macint64.hh"
 CLICK_DECLS
 

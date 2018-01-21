@@ -3,6 +3,7 @@
 
 #include <click/config.h>
 #include <click/element.hh>
+#include <click/timer.hh>
 #if HAVE_BATCH
 #include <click/batchelement.hh>
 #endif
